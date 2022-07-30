@@ -1,0 +1,287 @@
+---
+title: "NYPD Shooting Incidents"
+author: "Taya Prince"
+date: '2022-07-29'
+output: html_document
+---
+### Installing packages
+
+Click below to see the code to install necessary packages.
+
+<details>
+  <summary>*Code*</summary>
+
+```{r setup}
+install.packages('tidyverse')
+install.packages('lubridate')
+install.packages("gridExtra")
+library(tidyverse)
+library(lubridate)
+library(gridExtra)
+
+#This setting disables a notification from the summarise function that is redundant in this case
+options(dplyr.summarise.inform = FALSE)
+```
+
+</details>
+
+### Importing dataset
+
+```{r dataset}
+nypd_url = "https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD"
+
+df = read_csv(nypd_url, show_col_types = FALSE)
+```
+
+### Exploring dataset
+
+Below we are looking at the data types in all columns. We can see that the column 'OCCUR_DATE' is a string while it should be a date. We will correct this below. out of all columns, we will only be looking at certain ones, so we will be excluding a couple columns. We will also turn the age group columns into ordered factors.
+
+```{r spec}
+spec(df)
+```
+
+Click below to see the code used to perform the mentioned manipulations.
+
+<details>
+  <summary>*Code*</summary>
+
+```{r column_types}
+
+df = df %>% 
+  select(c("OCCUR_DATE", 
+           "OCCUR_TIME", 
+           "BORO",
+           "STATISTICAL_MURDER_FLAG",
+           "PERP_AGE_GROUP",
+           "PERP_SEX",
+           "PERP_RACE",
+           "VIC_AGE_GROUP",
+           "VIC_SEX",
+           "VIC_RACE")) %>%
+  mutate(OCCUR_DATE = mdy(OCCUR_DATE))
+
+df$PERP_AGE_GROUP = factor(df$PERP_AGE_GROUP, levels = c("<18", "18-24", "25-44", "45-64", "65+", "UNKNOWN"))
+df$VIC_AGE_GROUP = factor(df$VIC_AGE_GROUP, levels = c("<18", "18-24", "25-44", "45-64", "65+", "UNKNOWN"))
+df$PERP_RACE = factor(df$PERP_RACE)
+df$PERP_SEX = factor(df$PERP_SEX)
+df$VIC_RACE = factor(df$VIC_RACE)
+df$VIC_SEX = factor(df$VIC_SEX)
+df$BORO = factor(df$BORO)
+
+```
+
+</details>
+
+</br>
+
+```{r tibble_df}
+df
+```
+
+
+
+### Incidents in the different boroughs
+
+*The map below was made in and embedded from [Tableau](https://public.tableau.com "Tableau Public").*
+
+<div class='tableauPlaceholder' id='viz1659116083928' style='position: relative'><noscript><a href='#'><img alt=' ' src='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;NY&#47;NYPDShootingIncidents_16591154717140&#47;Dashboard1&#47;1_rss.png' style='border: none' /></a></noscript><object class='tableauViz'  style='display:none;'><param name='host_url' value='https%3A%2F%2Fpublic.tableau.com%2F' /> <param name='embed_code_version' value='3' /> <param name='site_root' value='' /><param name='name' value='NYPDShootingIncidents_16591154717140&#47;Dashboard1' /><param name='tabs' value='yes' /><param name='toolbar' value='yes' /><param name='static_image' value='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;NY&#47;NYPDShootingIncidents_16591154717140&#47;Dashboard1&#47;1.png' /> <param name='animate_transition' value='yes' /><param name='display_static_image' value='yes' /><param name='display_spinner' value='yes' /><param name='display_overlay' value='yes' /><param name='display_count' value='yes' /><param name='language' value='en-US' /></object></div>                
+
+```{js, echo = FALSE}                    
+var divElement = document.getElementById('viz1659116083928');                    var vizElement = divElement.getElementsByTagName('object')[0];                    if ( divElement.offsetWidth > 800 ) { vizElement.style.minWidth='1000px';vizElement.style.maxWidth='100%';vizElement.style.minHeight='850px';vizElement.style.maxHeight=(divElement.offsetWidth*0.75)+'px';} else if ( divElement.offsetWidth > 500 ) { vizElement.style.minWidth='1000px';vizElement.style.maxWidth='100%';vizElement.style.minHeight='850px';vizElement.style.maxHeight=(divElement.offsetWidth*0.75)+'px';} else { vizElement.style.width='100%';vizElement.style.minHeight='1000px';vizElement.style.maxHeight=(divElement.offsetWidth*1.77)+'px';}                     var scriptElement = document.createElement('script');                    scriptElement.src = 'https://public.tableau.com/javascripts/api/viz_v1.js';                    vizElement.parentNode.insertBefore(scriptElement, vizElement);                
+
+```
+
+### Analysis of data set
+
+I would like to see if perpetrators preferably attack victims of the same race as themselves. To see this, we need to group the data set by perpetrator and victim race, as done below. 
+
+<details>
+  <summary>*Expand here to see the code*</summary>
+```{r hypothesis}
+
+#creating two new dfs: grouped by perpetrator race and grouped by both perp. and vic. race
+by_race_df = df[!(is.na(df$PERP_RACE)),] %>%
+  group_by(PERP_RACE, VIC_RACE) %>%
+  summarise(incidents = n()) 
+
+by_perprace_df = df[!(is.na(df$PERP_RACE)),] %>%
+  group_by(PERP_RACE) %>%
+  summarise(incidents = n()) 
+
+#creating new df containing incidents only when victim is same race as perpetrator
+same_race = by_race_df[by_race_df$PERP_RACE==by_race_df$VIC_RACE,]
+
+#merging the above two new dfs and deleting them
+merged = merge(by_perprace_df, same_race, by = "PERP_RACE", all.x = TRUE)
+rm(by_perprace_df)
+rm(same_race)
+rm(by_race_df)
+
+#deleting VIC_RACE, not needed
+merged = subset(merged, select = -VIC_RACE)
+
+#renaming columns
+merged = rename(merged, incidents = incidents.x, VIC_RACE_SAME = incidents.y)
+
+#replacing NA with 0
+merged = replace(merged, is.na(merged), 0)
+
+#calculating 'other' column
+merged$VIC_RACE_DIFF = with(merged, merged$incidents - merged$VIC_RACE_SAME)
+
+#changing absolute values to percent
+merged$VIC_RACE_SAME = merged$VIC_RACE_SAME/merged$incidents
+merged$VIC_RACE_DIFF = merged$VIC_RACE_DIFF/merged$incidents
+
+#remove Unknown
+
+merged = merged[!merged$PERP_RACE=='UNKNOWN',]
+
+```
+
+</details>
+
+</br>
+
+The table shows attackers grouped by race, the number of incidents for this racial group, and the percent of cases where the victim was of the same racial background, or of a different one. 
+
+```{r merged_data}
+merged
+```
+
+
+### Creating Vizualisations
+
+<details>
+  <summary>*Click here to see the code used to create visualizations*</summary>
+  
+```{r visualizations}
+
+##############################
+#pie chart races perp and vic#
+##############################
+temp = df[!(is.na(df$PERP_RACE)|df$PERP_RACE=="UNKNOWN"),] %>% group_by(PERP_RACE) %>% summarise(incidents = n())
+viz_race_perp = ggplot(temp, aes(x = "", y = incidents, fill = PERP_RACE)) +
+  geom_bar(stat="identity", width=1, color = "white") +
+  coord_polar("y", start=0) + 
+  theme_void() + 
+  scale_fill_manual(name = "", values = c("#00455c", "#00636f", "#008067", "#3d9945", "#9ba910", "#ffa90a")) + 
+  labs(title = "Perpetrator Race")
+
+temp = df[!(is.na(df$VIC_RACE)|df$VIC_RACE=="UNKNOWN"),] %>% group_by(VIC_RACE) %>% summarise(incidents = n())
+viz_race_vic = ggplot(temp, aes(x = "", y = incidents, fill = VIC_RACE)) +
+  geom_bar(stat="identity", width=1, color = "white") +
+  coord_polar("y", start=0) + 
+  theme_void() + 
+  scale_fill_manual(name = "", values = c("#00455c", "#00636f", "#008067", "#3d9945", "#9ba910", "#ffa90a")) + 
+  labs(title = "Victim Race")
+
+###################################
+#pie chart age groups perp and vic#
+###################################
+temp = df[!(is.na(df$PERP_AGE_GROUP)|df$PERP_AGE_GROUP=="UNKNOWN"),] %>% group_by(PERP_AGE_GROUP) %>% summarise(incidents = n())
+viz_age_perp = ggplot(temp, aes(x = "", y = incidents, fill = PERP_AGE_GROUP)) +
+  geom_bar(stat="identity", width=1, color = "white") +
+  coord_polar("y", start=0) + 
+  theme_void() + 
+  scale_fill_manual(name = "", values = c("#00455c", "#006b70", "#008d58", "#84a620", "#ffa90a")) + 
+  labs(title = "Perpetrator Age Groups")
+
+temp = df[!(is.na(df$VIC_AGE_GROUP)|df$VIC_AGE_GROUP=="UNKNOWN"),] %>% group_by(VIC_AGE_GROUP) %>% summarise(incidents = n())
+viz_age_vic = ggplot(temp, aes(x = "", y = incidents, fill = VIC_AGE_GROUP)) +
+  geom_bar(stat="identity", width=1, color = "white") +
+  coord_polar("y", start=0) + 
+  theme_void() + 
+  scale_fill_manual(name = "", values = c("#00455c", "#006b70", "#008d58", "#84a620", "#ffa90a")) + 
+  labs(title = "Victim Age Groups")
+
+##############################
+#bar chart hours of incidents#
+##############################
+temp = df %>% 
+  group_by(hour = hour(OCCUR_TIME)) %>% summarise(incidents = n())
+
+viz_hours = ggplot(temp, aes(x = hour, y=incidents)) + geom_bar(stat = "identity", fill = "#006b70") + theme_minimal() + labs(title = "Incidents by Hour of Day", x = "Hour", y = "Incidents")
+
+######################
+#bar chart hypothesis#
+######################
+
+viz_hypo = subset(merged, select = -incidents) %>%
+  pivot_longer(!PERP_RACE, names_to = "victim", values_to = "incidents") %>%
+  ggplot(aes(x = PERP_RACE, y = incidents, fill = victim)) + 
+  geom_bar(stat = "identity", position = "dodge") + 
+  theme_minimal() + 
+  xlab("Perpetrator Race") + 
+  ylab("Percent of Incidents") + 
+  coord_flip() +
+  scale_fill_manual(values = c("#00636f","#ffa90a"), labels = c("Same Race", "Different Race"), name = "Victim") + 
+  labs(title = "Racial Background of Perpetrators and Victims")
+```
+
+</details>
+
+</br>
+
+#### Hours of the day
+
+```{r viz_hours}
+
+viz_hours
+
+```
+
+The bar chart above shows the number of crimes at different hours of the day, starting at midnight. As the graph shows, shootings occur mostly before 4 am. In the early morning there are almost no incidents. The number of shootings rises throughout the day until night time.
+
+#### Age groups
+
+```{r viz_age}
+
+grid.arrange(viz_age_perp, viz_age_vic, ncol=2)
+
+```
+
+As shown in above pie chart, most perpetrators as well as victims are between 18 and 44 years old. The distribution of age groups in victims and perpetrators is strikingly similar.
+
+</br>
+
+#### Racial background
+
+```{r viz_race}
+
+grid.arrange(viz_race_perp, viz_race_vic, nrow=2)
+
+```
+
+Just as the they did in age groups, perpetrators and victims show a very similar distribution of racial backgrounds.
+
+```{r viz_hypothesis}
+
+viz_hypo
+
+```
+
+As we can see above, all racial groups except perpetrators who are black or white attack more victims of a different race than themselves. The fact that black shooters attack mostly black victims can be partly attributed to the fact that most of the victims are black, so this correlation is to be expected and does not allow any conclusions.
+
+</br>
+
+### Conclusion and Bias
+
+The above report is analyzing the data set "NYPD Shooting Incident Data (Historic)", provided by the City of New York. We imported and cleaned the data set before analyzing and visualizing some example data. Our analyses showed that, unfortunately, most shooting victims and perpetrators have been classified as being of the 'black' race. Perpetrators do not seem to target a specific race over the others, the distribution of races in the victims mirrors the distribution in the perpetrators. An interesting finding was that the older shooters (65+ years old) shoot more female than male victims. It would be interesting to check if age groups target victims of the same age group. In that case, the longer life expectancy of women as compared to me might explain this finding. 
+
+One source of bias is a lack of deeper knowledge about New York and US crime statistics on my part. I am quite new to the US and all my knowledge about the crime scene is from news media, which in itself is often heavily biased. Another source is a lack on additional information. It would be interesting to know how racial backgrounds are distributed in the general population of New York, and what the reasons for the shootings were. The socioeconomic class would also be valuable information.
+
+</br>
+
+### Session Info
+
+<details>
+  <summary>Click to expand this section.</summary>
+
+```{r session}
+sessionInfo()
+```
+
+</details>
+
