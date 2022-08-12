@@ -249,7 +249,7 @@ grid.arrange(viz_age_perp, viz_age_vic, ncol=2)
 
 As shown in above pie chart, most perpetrators as well as victims are between 18 and 44 years old. The distribution of age groups in victims and perpetrators is strikingly similar.
 
-As we can see, almost all age groups shot more male as female victims (`r round(nrow(vic_sex_df[vic_sex_df$VIC_SEX=="M",])*100/nrow(vic_sex_df), digits=0)`% of victims are male). Only the group of ages 65 and up shot more women than men. We would like to know if there is a statistically significant connection here. As both variables are nominal, we are running a chi-squared test in the following code chunk:
+As we can see, almost all age groups shot more male as female victims. Only the group of ages 65 and up shot more women than men. We would like to know if there is a statistically significant connection here. As both variables are nominal, we are running a chi-squared test in the following code chunk:
 
 ```{r chi_test}
 
