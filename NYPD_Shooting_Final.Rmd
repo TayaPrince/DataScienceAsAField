@@ -150,6 +150,11 @@ The table shows attackers grouped by race, the number of incidents for this raci
 merged
 ```
 
+Below table shows the perpetrator's age group and the victim's gender. Interestingly, the only age group that shoots more women than men is the group of age 65+.
+
+```{r}
+table(df$VIC_SEX, df$PERP_AGE_GROUP)
+```
 
 ### Creating Vizualisations
 
@@ -244,6 +249,14 @@ grid.arrange(viz_age_perp, viz_age_vic, ncol=2)
 
 As shown in above pie chart, most perpetrators as well as victims are between 18 and 44 years old. The distribution of age groups in victims and perpetrators is strikingly similar.
 
+As we can see, almost all age groups shot more male as female victims (`r round(nrow(vic_sex_df[vic_sex_df$VIC_SEX=="M",])*100/nrow(vic_sex_df), digits=0)`% of victims are male). Only the group of ages 65 and up shot more women than men. We would like to know if there is a statistically significant connection here. As both variables are nominal, we are running a chi-squared test in the following code chunk:
+
+```{r chi_test}
+
+chisq.test(df$VIC_SEX, df$PERP_AGE_GROUP, correct = FALSE)
+
+```
+
 </br>
 
 #### Racial background
@@ -270,7 +283,7 @@ As we can see above, all racial groups except perpetrators who are black or whit
 
 The above report is analyzing the data set "NYPD Shooting Incident Data (Historic)", provided by the City of New York. We imported and cleaned the data set before analyzing and visualizing some example data. Our analyses showed that, unfortunately, most shooting victims and perpetrators have been classified as being of the 'black' race. Perpetrators do not seem to target a specific race over the others, the distribution of races in the victims mirrors the distribution in the perpetrators. An interesting finding was that the older shooters (65+ years old) shoot more female than male victims. It would be interesting to check if age groups target victims of the same age group. In that case, the longer life expectancy of women as compared to me might explain this finding. 
 
-One source of bias is a lack of deeper knowledge about New York and US crime statistics on my part. I am quite new to the US and all my knowledge about the crime scene is from news media, which in itself is often heavily biased. Another source is a lack on additional information. It would be interesting to know how racial backgrounds are distributed in the general population of New York, and what the reasons for the shootings were. The socioeconomic class would also be valuable information.
+One source of bias is a lack of deeper knowledge about New York and US crime statistics on my part. I am quite new to the US and all my knowledge about the crime scene is from news media, which in itself is often heavily biased. Another source is a lack on additional information. It would be interesting to know how racial backgrounds are distributed in the general population of New York, and what the reasons for the shootings were. The socioeconomic class would also be valuable information. I personally think information about socioeconomic status of victims and perpetrators would be more valuable than the race.
 
 </br>
 
@@ -284,4 +297,3 @@ sessionInfo()
 ```
 
 </details>
-
