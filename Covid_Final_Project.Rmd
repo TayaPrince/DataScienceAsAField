@@ -1,0 +1,407 @@
+---
+title: "Covid_Final_Project"
+author: "Taya Prince"
+date: '2022-08-02'
+output:
+  html_document:
+    df_print: paged
+---
+
+## Installing packages
+
+Click below to see the code to install necessary packages.
+
+<details>
+  <summary>*Code*</summary>
+
+```{r setup}
+install.packages('tidyverse')
+install.packages('lubridate')
+install.packages("gridExtra")
+install.packages("reshape2")
+install.packages("Rfast")
+library(tidyverse)
+library(lubridate)
+library(gridExtra)
+library(reshape2)
+library(Rfast)
+#This setting disables a notification from the summarise function that is redundant in this case
+options(dplyr.summarise.inform = FALSE)
+```
+
+</details>
+
+
+## Importing data sets
+
+Click below to see the code to import the data sets.
+
+<details>
+  <summary>*Code*</summary>
+
+```{r dataset}
+url_in = "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/"
+file_names = c(
+  "time_series_covid19_confirmed_US.csv",
+  "time_series_covid19_confirmed_global.csv",
+  "time_series_covid19_deaths_US.csv",
+  "time_series_covid19_deaths_global.csv",
+  "time_series_covid19_recovered_global.csv"
+)
+urls = str_c(url_in,file_names)
+
+comfirmed_us = read_csv(urls[1])
+confirmed_global = read_csv(urls[2])
+deaths_us = read_csv(urls[3])
+deaths_global = read_csv(urls[4])
+recovered_global = read_csv(urls[5])
+```
+
+</details>
+
+## Questions
+
+Using the dataset at hand, I would like to explore following questions: 
+
+- Which five states have the highest death toll each month of 2021, calculated as a percent of the state's population?
+- Can we find a predictive model for the cumulative deaths in Texas?
+
+## Wrangling and analyzing the data
+
+### Five highest death tolls per month in 2021
+
+To find the top five states (in terms of relative death toll 2021), I first need to change the format of the dataset. Currently, the deaths are cumulative for each day. I will group the data by state and create a variable for each month of 2021, based on the value of the last day of the month. This works because the original table is cumulative. I then calculate how many NEW deaths happened each month of 2021. Lastly, I divide this value by each state's population to find the relative death toll.
+
+```{r head1}
+deaths_by_state = deaths_us %>%
+  group_by(Province_State) %>%
+  summarize(population = sum(Population), 
+            dec20 = sum(`12/31/20`),
+            jan21 = sum(`1/31/21`),
+            feb21 = sum(`2/28/21`),
+            mar21 = sum(`3/31/21`),
+            apr21 = sum(`4/30/21`),
+            may21 = sum(`5/31/21`),
+            jun21 = sum(`6/30/21`),
+            jul21 = sum(`7/31/21`),
+            aug21 = sum(`8/31/21`),
+            sep21 = sum(`9/30/21`),
+            oct21 = sum(`10/31/21`),
+            nov21 = sum(`11/30/21`),
+            dec21 = sum(`12/31/21`),
+            jan21_new = jan21 - dec20,
+            feb21_new = feb21 - jan21,
+            mar21_new = mar21 - feb21, 
+            apr21_new = apr21 - mar21, 
+            may21_new = may21 - apr21, 
+            jun21_new = jun21 - may21, 
+            jul21_new = jul21 - jun21, 
+            aug21_new = aug21 - jul21, 
+            sep21_new = sep21 - aug21, 
+            oct21_new = oct21 - sep21, 
+            nov21_new = nov21 - oct21, 
+            dec21_new = dec21 - nov21,
+            jan21_percent = round((jan21_new/population)*100, 6),
+            feb21_percent = round((feb21_new/population)*100, 6),
+            mar21_percent = round((mar21_new/population)*100, 6),
+            apr21_percent = round((apr21_new/population)*100, 6),
+            may21_percent = round((may21_new/population)*100, 6),
+            jun21_percent = round((jun21_new/population)*100, 6),
+            jul21_percent = round((jul21_new/population)*100, 6),
+            aug21_percent = round((aug21_new/population)*100, 6),
+            sep21_percent = round((sep21_new/population)*100, 6),
+            oct21_percent = round((oct21_new/population)*100, 6),
+            nov21_percent = round((nov21_new/population)*100, 6),
+            dec21_percent = round((dec21_new/population)*100, 6),
+            )
+  #head(deaths_by_state)
+deaths_by_state = deaths_by_state[deaths_by_state$population!=0,]
+```
+
+```{r max}
+deaths_by_state
+
+```
+
+To find the top 5 states, I use the function nth(). This finds the specified value (first, second, third, etc) in the specified column. I find the five highest percentual death tolls for each month of 2021. Then, I plug those values into a new matrix, together with the appropriate state name. This matrix is then saved as a dataframe to be able to use it in ggplot2. 
+
+```{r building_table}
+# month | max | state
+jan_1 = nth(deaths_by_state$jan21_percent, 1, descending = T)
+jan_2 = nth(deaths_by_state$jan21_percent, 2, descending = T)
+jan_3 = nth(deaths_by_state$jan21_percent, 3, descending = T)
+jan_4 = nth(deaths_by_state$jan21_percent, 4, descending = T)
+jan_5 = nth(deaths_by_state$jan21_percent, 5, descending = T)
+feb_1 = nth(deaths_by_state$feb21_percent, 1, descending = T)
+feb_2 = nth(deaths_by_state$feb21_percent, 2, descending = T)
+feb_3 = nth(deaths_by_state$feb21_percent, 3, descending = T)
+feb_4 = nth(deaths_by_state$feb21_percent, 4, descending = T)
+feb_5 = nth(deaths_by_state$feb21_percent, 5, descending = T)
+mar_1 = nth(deaths_by_state$mar21_percent, 1, descending = T)
+mar_2 = nth(deaths_by_state$mar21_percent, 2, descending = T)
+mar_3 = nth(deaths_by_state$mar21_percent, 3, descending = T)
+mar_4 = nth(deaths_by_state$mar21_percent, 4, descending = T)
+mar_5 = nth(deaths_by_state$mar21_percent, 5, descending = T)
+apr_1 = nth(deaths_by_state$apr21_percent, 1, descending = T)
+apr_2 = nth(deaths_by_state$apr21_percent, 2, descending = T)
+apr_3 = nth(deaths_by_state$apr21_percent, 3, descending = T)
+apr_4 = nth(deaths_by_state$apr21_percent, 4, descending = T)
+apr_5 = nth(deaths_by_state$apr21_percent, 5, descending = T)
+may_1 = nth(deaths_by_state$may21_percent, 1, descending = T)
+may_2 = nth(deaths_by_state$may21_percent, 2, descending = T)
+may_3 = nth(deaths_by_state$may21_percent, 3, descending = T)
+may_4 = nth(deaths_by_state$may21_percent, 4, descending = T)
+may_5 = nth(deaths_by_state$may21_percent, 5, descending = T)
+jun_1 = nth(deaths_by_state$jun21_percent, 1, descending = T)
+jun_2 = nth(deaths_by_state$jun21_percent, 2, descending = T)
+jun_3 = nth(deaths_by_state$jun21_percent, 3, descending = T)
+jun_4 = nth(deaths_by_state$jun21_percent, 4, descending = T)
+jun_5 = nth(deaths_by_state$jun21_percent, 5, descending = T)
+jul_1 = nth(deaths_by_state$jul21_percent, 1, descending = T)
+jul_2 = nth(deaths_by_state$jul21_percent, 2, descending = T)
+jul_3 = nth(deaths_by_state$jul21_percent, 3, descending = T)
+jul_4 = nth(deaths_by_state$jul21_percent, 4, descending = T)
+jul_5 = nth(deaths_by_state$jul21_percent, 5, descending = T)
+aug_1 = nth(deaths_by_state$aug21_percent, 1, descending = T)
+aug_2 = nth(deaths_by_state$aug21_percent, 2, descending = T)
+aug_3 = nth(deaths_by_state$aug21_percent, 3, descending = T)
+aug_4 = nth(deaths_by_state$aug21_percent, 4, descending = T)
+aug_5 = nth(deaths_by_state$aug21_percent, 5, descending = T)
+sep_1 = nth(deaths_by_state$sep21_percent, 1, descending = T)
+sep_2 = nth(deaths_by_state$sep21_percent, 2, descending = T)
+sep_3 = nth(deaths_by_state$sep21_percent, 3, descending = T)
+sep_4 = nth(deaths_by_state$sep21_percent, 4, descending = T)
+sep_5 = nth(deaths_by_state$sep21_percent, 5, descending = T)
+oct_1 = nth(deaths_by_state$oct21_percent, 1, descending = T)
+oct_2 = nth(deaths_by_state$oct21_percent, 2, descending = T)
+oct_3 = nth(deaths_by_state$oct21_percent, 3, descending = T)
+oct_4 = nth(deaths_by_state$oct21_percent, 4, descending = T)
+oct_5 = nth(deaths_by_state$oct21_percent, 5, descending = T)
+nov_1 = nth(deaths_by_state$nov21_percent, 1, descending = T)
+nov_2 = nth(deaths_by_state$nov21_percent, 2, descending = T)
+nov_3 = nth(deaths_by_state$nov21_percent, 3, descending = T)
+nov_4 = nth(deaths_by_state$nov21_percent, 4, descending = T)
+nov_5 = nth(deaths_by_state$nov21_percent, 5, descending = T)
+dec_1 = nth(deaths_by_state$dec21_percent, 1, descending = T)
+dec_2 = nth(deaths_by_state$dec21_percent, 2, descending = T)
+dec_3 = nth(deaths_by_state$dec21_percent, 3, descending = T)
+dec_4 = nth(deaths_by_state$dec21_percent, 4, descending = T)
+dec_5 = nth(deaths_by_state$dec21_percent, 5, descending = T)
+
+#Building the matrix
+#columns: 11 (as below)
+# month | top1 | top2 | top3 | top4 | top5 | state1 | state2 | state3 | state4 | state5
+deaths_top_5 = matrix(c(
+  #January
+  "jan21", jan_1, jan_2, jan_3, jan_4, jan_5, 
+  deaths_by_state[deaths_by_state$jan21_percent == jan_1,][1], 
+  deaths_by_state[deaths_by_state$jan21_percent == jan_2,][1], 
+  deaths_by_state[deaths_by_state$jan21_percent == jan_3,][1],
+  deaths_by_state[deaths_by_state$jan21_percent == jan_4,][1], 
+  deaths_by_state[deaths_by_state$jan21_percent == jan_5,][1],
+  #February
+  "feb21", feb_1, feb_2, feb_3, feb_4, feb_5, 
+  deaths_by_state[deaths_by_state$feb21_percent == feb_1,][1], 
+  deaths_by_state[deaths_by_state$feb21_percent == feb_2,][1], 
+  deaths_by_state[deaths_by_state$feb21_percent == feb_3,][1],
+  deaths_by_state[deaths_by_state$feb21_percent == feb_4,][1], 
+  deaths_by_state[deaths_by_state$feb21_percent == feb_5,][1],
+  #March
+  "mar21", mar_1, mar_2, mar_3, mar_4, mar_5, 
+  deaths_by_state[deaths_by_state$mar21_percent == mar_1,][1], 
+  deaths_by_state[deaths_by_state$mar21_percent == mar_2,][1], 
+  deaths_by_state[deaths_by_state$mar21_percent == mar_3,][1],
+  deaths_by_state[deaths_by_state$mar21_percent == mar_4,][1], 
+  deaths_by_state[deaths_by_state$mar21_percent == mar_5,][1],
+  #April
+  "apr21", apr_1, apr_2, apr_3, apr_4, apr_5, 
+  deaths_by_state[deaths_by_state$apr21_percent == apr_1,][1], 
+  deaths_by_state[deaths_by_state$apr21_percent == apr_2,][1], 
+  deaths_by_state[deaths_by_state$apr21_percent == apr_3,][1],
+  deaths_by_state[deaths_by_state$apr21_percent == apr_4,][1], 
+  deaths_by_state[deaths_by_state$apr21_percent == apr_5,][1],
+  #May
+  "may21", may_1, may_2, may_3, may_4, may_5, 
+  deaths_by_state[deaths_by_state$may21_percent == may_1,][1], 
+  deaths_by_state[deaths_by_state$may21_percent == may_2,][1], 
+  deaths_by_state[deaths_by_state$may21_percent == may_3,][1],
+  deaths_by_state[deaths_by_state$may21_percent == may_4,][1], 
+  deaths_by_state[deaths_by_state$may21_percent == may_5,][1],
+  #June
+  "jun21", jun_1, jun_2, jun_3, jun_4, jun_5, 
+  deaths_by_state[deaths_by_state$jun21_percent == jun_1,][1], 
+  deaths_by_state[deaths_by_state$jun21_percent == jun_2,][1], 
+  deaths_by_state[deaths_by_state$jun21_percent == jun_3,][1],
+  deaths_by_state[deaths_by_state$jun21_percent == jun_4,][1], 
+  deaths_by_state[deaths_by_state$jun21_percent == jun_5,][1],
+  #July
+  "jul21", jul_1, jul_2, jul_3, jul_4, jul_5, 
+  deaths_by_state[deaths_by_state$jul21_percent == jul_1,][1], 
+  deaths_by_state[deaths_by_state$jul21_percent == jul_2,][1], 
+  deaths_by_state[deaths_by_state$jul21_percent == jul_3,][1],
+  deaths_by_state[deaths_by_state$jul21_percent == jul_4,][1], 
+  deaths_by_state[deaths_by_state$jul21_percent == jul_5,][1],
+  #August
+  "aug21", aug_1, aug_2, aug_3, aug_4, aug_5, 
+  deaths_by_state[deaths_by_state$aug21_percent == aug_1,][1], 
+  deaths_by_state[deaths_by_state$aug21_percent == aug_2,][1], 
+  deaths_by_state[deaths_by_state$aug21_percent == aug_3,][1],
+  deaths_by_state[deaths_by_state$aug21_percent == aug_4,][1], 
+  deaths_by_state[deaths_by_state$aug21_percent == aug_5,][1],
+  #September
+  "sep21", sep_1, sep_2, sep_3, sep_4, sep_5, 
+  deaths_by_state[deaths_by_state$sep21_percent == sep_1,][1], 
+  deaths_by_state[deaths_by_state$sep21_percent == sep_2,][1], 
+  deaths_by_state[deaths_by_state$sep21_percent == sep_3,][1],
+  deaths_by_state[deaths_by_state$sep21_percent == sep_4,][1], 
+  deaths_by_state[deaths_by_state$sep21_percent == sep_5,][1],
+  #October
+  "oct21", oct_1, oct_2, oct_3, oct_4, oct_5, 
+  deaths_by_state[deaths_by_state$oct21_percent == oct_1,][1], 
+  deaths_by_state[deaths_by_state$oct21_percent == oct_2,][1], 
+  deaths_by_state[deaths_by_state$oct21_percent == oct_3,][1],
+  deaths_by_state[deaths_by_state$oct21_percent == oct_4,][1], 
+  deaths_by_state[deaths_by_state$oct21_percent == oct_5,][1],
+  #November
+  "nov21", nov_1, nov_2, nov_3, nov_4, nov_5, 
+  deaths_by_state[deaths_by_state$nov21_percent == nov_1,][1], 
+  deaths_by_state[deaths_by_state$nov21_percent == nov_2,][1], 
+  deaths_by_state[deaths_by_state$nov21_percent == nov_3,][1],
+  deaths_by_state[deaths_by_state$nov21_percent == nov_4,][1], 
+  deaths_by_state[deaths_by_state$nov21_percent == nov_5,][1],
+  #December
+  "dec21", dec_1, dec_2, dec_3, dec_4, dec_5, 
+  deaths_by_state[deaths_by_state$dec21_percent == dec_1,][1], 
+  deaths_by_state[deaths_by_state$dec21_percent == dec_2,][1], 
+  deaths_by_state[deaths_by_state$dec21_percent == dec_3,][1],
+  deaths_by_state[deaths_by_state$dec21_percent == dec_4,][1], 
+  deaths_by_state[deaths_by_state$dec21_percent == dec_5,][1]),
+  ncol = 11, byrow = TRUE)
+
+colnames(deaths_top_5) = c("month", "first_percent", "second_percent", "third_percent", "fourth_percent", "fifth_percent", "first_state", "second_state", "third_state", "fourth_state", "fifth_state")
+
+deaths_top_5 = as.data.frame(deaths_top_5)
+
+deaths_top_5$month = as.character(deaths_top_5$month)
+deaths_top_5$first_percent = as.numeric(deaths_top_5$first_percent)
+deaths_top_5$second_percent = as.numeric(deaths_top_5$second_percent)
+deaths_top_5$third_percent = as.numeric(deaths_top_5$third_percent)
+deaths_top_5$fourth_percent = as.numeric(deaths_top_5$fourth_percent)
+deaths_top_5$fifth_percent = as.numeric(deaths_top_5$fifth_percent)
+deaths_top_5$first_state = as.character(deaths_top_5$first_state)
+deaths_top_5$second_state = as.character(deaths_top_5$second_state)
+deaths_top_5$third_state = as.character(deaths_top_5$third_state)
+deaths_top_5$fourth_state = as.character(deaths_top_5$fourth_state)
+deaths_top_5$fifth_state = as.character(deaths_top_5$fifth_state)
+```
+
+```{r print_table}
+deaths_top_5
+```
+
+In this table we can see the highest relative death tolls and the state in which this number occurred. For example, in January 2021, the highest death toll was registered in Arizona, where .058% of the population died to Covid19. In September, the highest death toll happened in Florida, where .048% of the population died. 
+
+```{r viz_deaths_top_5}
+viz_deaths_top_5 = ggplot(deaths_top_5, aes(group=1, x = factor(month, levels = c("jan21", "feb21", "mar21", "apr21", "may21", "jun21", "jul21", "aug21", "sep21", "oct21", "nov21", "dec21")))) + 
+  ylim(0,0.06) +
+  geom_point(y = deaths_top_5$first_percent, color = '#005e79', fill = '#005e79', shape = 23) + 
+  geom_line(y = deaths_top_5$first_percent, color = '#005e79') +
+  geom_point(y = deaths_top_5$second_percent, color = '#007b7c', fill = '#007b7c', shape = 23) +
+  geom_line(y = deaths_top_5$second_percent, color = '#007b7c')+
+  geom_point(y = deaths_top_5$third_percent, color = '#059356', fill = '#059356', shape = 23) +
+  geom_line(y = deaths_top_5$third_percent, color = '#059356')+
+  geom_point(y = deaths_top_5$fourth_percent, color = '#89a011', fill = '#89a011', shape = 23) +
+  geom_line(y = deaths_top_5$fourth_percent, color = '#89a011')+
+  geom_point(y = deaths_top_5$fifth_percent, color = '#f69600', fill = '#f69600', shape = 23) +
+  geom_line(y = deaths_top_5$fifth_percent, color = '#f69600')+
+  theme_minimal() +
+  scale_x_discrete("Months 2021", labels = c("jan21" = "January", "feb21" = "February", "mar21" = "March", "apr21" = "April", "may21" = "May", "jun21" = "June", "jul21" = "July", "aug21" = "August", "sep21" = "September", "oct21" = "October", "nov21" = "November", "dec21" = "December"))+
+  theme(axis.text.x = element_text(angle = 45)) +
+  labs(y = "Percent", title = "Death Toll of the Top Five States in 2021", subtitle = "Percentage of state's population lost to Covid19 each month")
+
+
+viz_deaths_top_5
+```
+
+### Predictive Analysis of Texas Deaths
+
+Next, I would like to see if I can find a predictive model for the death toll of Texas. To this end, I first create a dataset that contains only the values for Texas. I then group the data by state by summing up all other columns (which contain the deaths). Then, I change the format from wide (days recorded as columns) to long (days recorded as rows). I create a new numeric variable "days", as a predictive model cannot work with dates. 
+
+```{r predictive}
+deaths_texas = read_csv(urls[3])
+```
+
+```{r}
+#Filtering for Texas
+deaths_texas = deaths_texas[deaths_texas$Province_State == "Texas",]
+#deleting some columns
+deaths_texas = deaths_texas %>% select(-c(UID, iso2, iso3, code3, FIPS, Admin2, Country_Region, Lat, Long_, Combined_Key, Population))
+#Summarizing each column grouping on Province_State
+deaths_texas = aggregate(.~Province_State, deaths_texas, sum)
+#Changing from wide to long format
+deaths_texas = melt(deaths_texas)
+#Adding a "days" variable to be able to make a predictive model, it cannot work with dates
+deaths_texas$days = c(1:936)
+tail(deaths_texas)
+```
+
+Next, I save three different models: The linear model, the second-degree, and the third-degree polynomial. I plot all of these in a graph that shows the actual recorded data. As we can see, the third-degree polynomial seems to fit the data the best.
+
+```{r}
+fit1 <- lm(value~days, data=deaths_texas)
+fit2 <- lm(value~poly(days,2,raw=TRUE), data=deaths_texas)
+fit3 <- lm(value~poly(days,3,raw=TRUE), data=deaths_texas)
+
+
+#Saving predicted values as new columns, one for each model
+deaths_texas$predicted1 = predict(fit1)
+deaths_texas$predicted2 = predict(fit2)
+deaths_texas$predicted3 = predict(fit3)
+
+
+viz_tx = ggplot(deaths_texas, aes(x=days))+
+  geom_point(aes(y=value, color="Deaths"), size = .1)+
+  geom_line(aes(y=predicted1, color="First_Degree"))+
+  geom_line(aes(y=predicted2, color="Second_Degree"))+
+  geom_line(aes(y=predicted3, color="Third_Degree"))+
+  theme_minimal()+
+  labs(x = "Days", y="Deaths (cummulative)", title = "Predictive Analysis of Covid19-Deaths in Texas")+
+  scale_color_manual(name = "Models", values = c(First_Degree = "#00776e", Second_Degree = "#629c36", Third_Degree = "#ff9f09", Deaths = "#2a4858"))
+viz_tx
+
+```
+
+To see which model fits the best (without eye-balling it), I calculate the adjusted r-squared values for each model. As we can see, the third-degree polynomial does provide the best fit.
+
+```{r}
+summary(fit1)$adj.r.squared
+summary(fit2)$adj.r.squared
+summary(fit3)$adj.r.squared
+```
+
+```{r}
+viz_tx_predict = ggplot(deaths_texas, aes(x=days))+
+  geom_point(aes(y=value, color="Deaths"), size = .1)+
+  geom_line(aes(y=predicted3, color="Third_Degree"))+
+  theme_minimal()+
+  labs(x = "Days", y="Deaths (cummulative)", title = "Predictive Analysis of Covid19-Deaths in Texas")+
+  scale_color_manual(name = "Models", values = c(Third_Degree = "#ff9f09", Deaths = "#2a4858"))
+viz_tx_predict
+```
+
+The summary function can be used tor retrieve the equation of the model. In this case, the equation is: 
+
+y = 0.0002055x&#179; + 0.275x&#178; + 21.73x-3,067
+
+This equation can be used to predict the future development of the cumulative deaths in Texas by plugging in increasing days for x. Be careful when interpreting predictive models, though, as they can be very unreliable. 
+
+```{r}
+summary(fit3)
+
+```
+
+## Conclusion
+
+The this report I analyzed a dataset containing the cumulative Covid19 death toll for the US. I found out which states had the highest relative death toll through the year 2021. I also found a model that fits the death number of Texas quite well. 
+
+Thank you for reading this report, I hope you could take something of interest away from this. 
