@@ -404,4 +404,6 @@ summary(fit3)
 
 The this report I analyzed a dataset containing the cumulative Covid19 death toll for the US. I found out which states had the highest relative death toll through the year 2021. I also found a model that fits the death number of Texas quite well. 
 
+There are numerous sources of bias. It is often not easy to determine the cause of death, as people who die to Covid19 usually have serious comorbidities. There might also be delays in reporting numbers, which would skew the predictive model. There might be unreported deaths. 
+
 Thank you for reading this report, I hope you could take something of interest away from this. 
